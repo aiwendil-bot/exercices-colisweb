@@ -1,0 +1,4 @@
+-J-XX:MaxMetaspaceSize=512M
+-J-XX:+UseCodeCacheFlushing
+-J-Xss4m
+-J-Duser.timezone=GMT
