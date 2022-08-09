@@ -35,6 +35,13 @@ s'il n'est pas la liste vide :
     et pour chacun des voisins non déjà visités je crée une liste de chemins, constitués du voisin ajouté en tête du
     chemin "actuel" de l'itération. Pour ceux déjà visités il n'y a pas de nouveau chemin de créé mais une liste vide
 
+    précision : intellij affiche un warning car le cas où le chemin connu le plus court est vide n'est pas couvert.
+    il n'y a pas besoin de le traiter car ce cas n'arrive jamais :
+
+    soit bestknownpaths contient au moins un chemin connu qu'il faut améliorer (et qui est non vide, car le plus petit
+    chemin possible est (List(problem.start), 0), et on ne fait que rajouter des points après,
+    soit bestknownpath est vide, cas déjà couvert.
+
     enfin, je trie bestKnownPaths par longueur croissante et j'appelle dijkstra sur cette liste triée et sur visited
     auquel j'ai ajouté le point visité lors de l'itération.
 
