@@ -53,8 +53,8 @@ j'ai aussi implementé le calcul de la longueur d'un chemin dans Path.scala
 
 4/ les -
 
-- cette implémentation "galère" pour les grosses instances et stickman, sur ma vieille machine du moins
-(ubuntu 20.04, intel i5 2.5 GHz, RAM 8Go)
+- cette implémentation met du temps sur les grosses instances (j'ai arrêté les calculs
+au bout de 20min sur stickman) sur ma machine du moins (ubuntu 20.04, intel i5 2.5 GHz, RAM 8Go)
 - une opération coûteuse est le tri de bestKnownPaths, je n'ai pas eu d'autre idée pour éviter ou diminuer ce coût
 avec la contrainte de faire entièrement du fonctionnel
 
