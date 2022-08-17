@@ -16,6 +16,8 @@ object MainCycle extends App {
       }
       .flatten
 
+  //val points = Iterable(Point(0,0),Point(0,1),Point(1,0),Point(1,1))
+  //Cycle.shortCycle(points)
   Cycle.shortCycle(pointsInGrid(10, 8))
 
   println("80 points in a 8x10 grid")

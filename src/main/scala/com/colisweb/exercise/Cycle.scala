@@ -7,153 +7,93 @@ import scala.annotation.tailrec
 
 object Cycle {
 
-  // "Simple Constructive, Insertion, and Improvement Heuristics Based on the Girding Polygon for the Euclidean Traveling Salesman Problem"
-  // Source : https://www.mdpi.com/1999-4893/13/1/5
   def shortCycle(points: Iterable[Point]): Path = {
 
     def sqr(d: Double): Double = d * d
 
     def distance(p1: Point, p2: Point): Double = math.sqrt(sqr(p2.x - p1.x) + sqr(p2.y - p1.y))
 
-    // Phase 1
+    // NN construction heuristic
 
-    val pointsList: List[Point] = points.toList
+    val pointList:List[Point] = points.toList
 
-    def extremePoints():List[Point] = {
+    def NN(pointsRestants: List[Point]): List[Point] = pointsRestants match {
 
-      @tailrec
-      def extremeCoordonates(V:List[Point], xmin:Double, xmax:Double, ymin:Double, ymax:Double):(Double,Double,Double,Double) = V match {
-        case Nil => (xmin,xmax,ymin,ymax)
-        case p :: t =>
-          val yma = if (p.y > ymax) p.y else ymax
-          val ymi = if (p.y < ymin) p.y else ymin
-          val xma = if (p.x > xmax) p.x else xmax
-          val xmi = if (p.x < xmin) p.x else xmin
-          extremeCoordonates(t,xmi,xma,ymi,yma)
-      }
-
-      val (xmin,xmax,ymin,ymax) = extremeCoordonates(pointsList,pointsList(1).x,pointsList(1).x,pointsList(1).y,pointsList(1).y)
-
-      val T = pointsList.filter(p => p.y == ymax)
-      val L = pointsList.filter(p => p.x == xmin)
-      val B = pointsList.filter(p => p.y == ymin)
-      val R = pointsList.filter(p => p.x == xmax)
-
-      @tailrec
-      def extremePointsHelper1(T: List[Point], v1:Point):Point = T match {
-        case Nil => v1
-        case p :: t =>
-          val v = if (p.x > v1.x) p else v1
-          extremePointsHelper1(t,v)
-      }
-      @tailrec
-      def extremePointsHelper2(L: List[Point], v2: Point): Point = L match {
-        case Nil => v2
-        case p :: t =>
-          val v = if (p.y > v2.y) p else v2
-          extremePointsHelper2(t, v)
-      }
-
-      @tailrec
-      def extremePointsHelper3(B: List[Point], v3: Point): Point = B match {
-        case Nil => v3
-        case p :: t =>
-          val v = if (p.x < v3.x) p else v3
-          extremePointsHelper3(t, v)
-      }
-
-      @tailrec
-      def extremePointsHelper4(R: List[Point], v4: Point): Point = R match {
-        case Nil => v4
-        case p :: t =>
-          val v = if (p.y < v4.y) p else v4
-          extremePointsHelper4(t, v)
-      }
-
-      List(extremePointsHelper1(T,T.head),extremePointsHelper2(L,L.head),extremePointsHelper3(B,B.head),extremePointsHelper4(R,R.head))
+      case Nil => Nil
+      case p::Nil => p::Nil
+      case p :: tail =>
+        val nearest:Point = tail.minBy(t => distance(t,p))
+        p::nearest::NN(tail diff List(nearest,p))
 
     }
 
-    val ExtremePointsList = extremePoints()
+    val NNPath = NN(pointList)
 
-    val v1 = ExtremePointsList.head
-    val v2 = ExtremePointsList(1)
-    val v3 = ExtremePointsList(2)
-    val v4 = ExtremePointsList(3)
 
-    def teta(p1: Point, p2: Point): Double = {
-      if (math.asin((p2.y - p1.y) / distance(p1, p2)) >= 0)
-        math.acos((p2.x - p1.x) / distance(p1, p2))
-      else
-        -math.acos((p2.x - p1.x) / distance(p1, p2))
+    // 2-opt
+
+    @tailrec
+    def getNextElem[T](liste:List[T], elem:T):Option[T] = liste match {
+      case Nil => None
+      case `elem` :: t :: _ => Some(t)
+      case _ :: tail => getNextElem(tail,elem)
     }
 
-
-    def polygonProcedure(pointsList: List[Point], v1: Point, v2: Point, v3: Point, v4: Point): List[Point] = {
-      val P = List(v1)
-      val k = v1
-
-      def subsetEdges(k: Point, V: List[Point]): List[Edge] = V match {
-        case Nil => Nil
-        case p :: t => Edge(k, p) :: subsetEdges(k, t)
-      }
-
-      def setAngles(k: Point, E: List[Edge]):Map[(Point,Point),Double] = E match {
-        case Nil => Map[(Point,Point),Double]()
-        case e :: t => setAngles(k,t) + ((e.from,e.to) -> teta(e.from,e.to))
-      }
-
-      @tailrec
-      def polygonHelp1(P: List[Point], k: Point): List[Point] = {
-        if (k == v2) Nil
-        else {
-          val V: List[Point] = pointsList.filter(p => p.x < k.x && p.y >= v2.y)
-          val E: List[Edge] = subsetEdges(k, V)
-          val minVertices: (Point, Point) = setAngles(k, E).minBy(_._2)._1
-          polygonHelp1(minVertices._2::P,minVertices._2)
-        }
-      }
-
-      @tailrec
-      def polygonHelp2(P: List[Point], k: Point): List[Point] = {
-        if (k == v3) Nil
-        else {
-          val V: List[Point] = pointsList.filter(p => p.x <= v3.x && p.y < k.y)
-          val E: List[Edge] = subsetEdges(k, V)
-          val minVertices: (Point, Point) = setAngles(k, E).minBy(_._2)._1
-          polygonHelp2(minVertices._2 :: P, minVertices._2)
-        }
-      }
-
-      @tailrec
-      def polygonHelp3(P: List[Point], k: Point): List[Point] = {
-        if (k == v4) Nil
-        else {
-          val V: List[Point] = pointsList.filter(p => p.x > k.x && p.y <= v4.y)
-          val E: List[Edge] = subsetEdges(k, V)
-          val minVertices: (Point, Point) = setAngles(k, E).minBy(_._2)._1
-          polygonHelp3(minVertices._2 :: P, minVertices._2)
-        }
-      }
-      @tailrec
-      def polygonHelp4(P: List[Point], k: Point): List[Point] = {
-        if (k == v1) Nil
-        else {
-          val V: List[Point] = pointsList.filter(p => p.x >= v1.x && p.y > k.y)
-          val E: List[Edge] = subsetEdges(k, V)
-          val minVertices: (Point, Point) = setAngles(k, E).minBy(_._2)._1
-          polygonHelp4(minVertices._2 :: P, minVertices._2)
-        }
-      }
-
-      polygonHelp4(polygonHelp3(polygonHelp2(polygonHelp1(P,k),v2),v3),v4)
-
+    @tailrec
+    def getPreviousElem[T](liste:List[T], elem:T):Option[T] = liste match {
+      case Nil => None
+      case t :: `elem` :: _ => Some(t)
+      case _ :: tail => getPreviousElem(tail, elem)
     }
 
-    Path(polygonProcedure(pointsList,v1,v2,v3,v4))
+    def TwoOpt(cycle:List[Point]):List[Point] =  {
 
-    // Phase 2
+      def boucleWhile(cycle:List[Point],cycleCopy:List[Point],cycleCopy2:List[Point],amelioration:List[Boolean]):List[Point] = {
+        if (amelioration.contains(true)) {
+        def boucleFor1(cycle: List[Point], cycleCopy: List[Point], cycleCopy2: List[Point],amelioration1:List[Boolean] ): List[Point] = cycleCopy match {
+          case Nil => boucleWhile(cycle, cycleCopy, cycleCopy2,amelioration1)
+          case xi :: tail1 =>
+            @tailrec
+            def boucleFor2(xi:Point, cycle: List[Point], cycleCopy: List[Point], cycleCopy2: List[Point], amelioration2:List[Boolean]): List[Point] = cycleCopy2 match {
+              case Nil => boucleFor1(cycle, cycleCopy, cycle,amelioration2)
+              case xj :: tail2 =>
+                if (xj != xi && xj != getNextElem(cycle, xi).getOrElse(cycle.head) && xj != getPreviousElem(cycle, xi).getOrElse(cycle.last)) {
 
+                    if ((distance(xi,getNextElem(cycle,xi).getOrElse(cycle.head)) + distance(xj,getNextElem(cycle,xj).getOrElse(cycle.head)))
+                    > (distance(xi,xj) + distance(getNextElem(cycle,xi).getOrElse(cycle.head),getNextElem(cycle,xj).getOrElse(cycle.head)))) {
 
-  }
+                      def permEdges(cycle:List[Point],xi:Point,xi_suiv:Point,xj:Point,xj_suiv:Point):List[Point] = cycle match {
+                        case Nil => Nil
+
+                        case `xi` :: _ :: tail => xi :: xj :: permEdges(tail,xi, xi_suiv, xj, xj_suiv)
+                        case `xj` :: _ :: tail => xi_suiv :: xj_suiv :: permEdges(tail,xi, xi_suiv, xj, xj_suiv)
+                        case p::tail => p::permEdges(tail,xi, xi_suiv, xj, xj_suiv)
+                      }
+                      val newCycle:List[Point] = permEdges(cycle,xi,xj,getNextElem(cycle,xi).getOrElse(cycle.head),getNextElem(cycle,xj).getOrElse(cycle.head))
+
+                      val b:Int = newCycle.indexOf(getNextElem(cycle,xi).getOrElse(cycle.head))
+                      val x:Int = newCycle.indexOf(xj)
+
+                      val newCycleOrdered:List[Point] = if (x < b) newCycle.take(x) ::: newCycle.slice(x + 1,b+1).reverse ::: newCycle.takeRight(newCycle.size - b)
+                      else newCycle.take(b) ::: newCycle.slice(b + 1,x+1).reverse ::: newCycle.takeRight(newCycle.size - x)
+                      boucleFor2(xi,newCycleOrdered,cycleCopy,tail2,true::amelioration2)
+                    }
+                    else boucleFor2(xi,cycle,cycleCopy,tail2,false::amelioration2)
+                }
+                else boucleFor2(xi,cycle, cycleCopy, tail2,false::amelioration2)
+
+            }
+          boucleFor2(xi,cycle,tail1,cycleCopy2,amelioration1)
+        }
+        boucleFor1(cycle, cycleCopy, cycleCopy2,List[Boolean]())
+      } else {
+        cycle
+      }
+      }
+
+      boucleWhile(cycle,cycle,cycle,List[Boolean](true))
+    }
+    val twoOpt = TwoOpt(NNPath)
+    Path(twoOpt :+ twoOpt.head)
+}
 }
