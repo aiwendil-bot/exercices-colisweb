@@ -3,97 +3,88 @@ package com.colisweb.exercise
 import com.colisweb.exercise.domain.{Edge, Path, Point}
 
 import scala.annotation.tailrec
-
+import scala.util.control._
 
 object Cycle {
 
   def shortCycle(points: Iterable[Point]): Path = {
 
-    def sqr(d: Double): Double = d * d
-
-    def distance(p1: Point, p2: Point): Double = math.sqrt(sqr(p2.x - p1.x) + sqr(p2.y - p1.y))
-
     // NN construction heuristic
 
-    val pointList:List[Point] = points.toList
+    val pointsList: List[Point] = points.toList
 
-    def NN(pointsRestants: List[Point]): List[Point] = pointsRestants match {
-
-      case Nil => Nil
-      case p::Nil => p::Nil
-      case p :: tail =>
-        val nearest:Point = tail.minBy(t => distance(t,p))
-        p::nearest::NN(tail diff List(nearest,p))
-
+    def NearestNeighbor(points: List[Point], currentPoint: Point, cycle: List[Edge]): List[Edge] = {
+      if (points.isEmpty) Edge(cycle.last.to, currentPoint) :: cycle
+      else {
+        val nearest: Point = points.minBy(p => Edge(p, currentPoint).distance2)
+        NearestNeighbor(points diff List(nearest), nearest, Edge(nearest, currentPoint) :: cycle)
+      }
     }
-
-    val NNPath = NN(pointList)
-
 
     // 2-opt
 
     @tailrec
-    def getNextElem[T](liste:List[T], elem:T):Option[T] = liste match {
+    def getNextElem[T](liste: List[T], elem: T): Option[T] = liste match {
       case Nil => None
       case `elem` :: t :: _ => Some(t)
-      case _ :: tail => getNextElem(tail,elem)
+      case _ :: tail => getNextElem(tail, elem)
     }
 
     @tailrec
-    def getPreviousElem[T](liste:List[T], elem:T):Option[T] = liste match {
+    def getPreviousElem[T](liste: List[T], elem: T): Option[T] = liste match {
       case Nil => None
       case t :: `elem` :: _ => Some(t)
       case _ :: tail => getPreviousElem(tail, elem)
     }
 
-    def TwoOpt(cycle:List[Point]):List[Point] =  {
-
-      def boucleWhile(cycle:List[Point],cycleCopy:List[Point],cycleCopy2:List[Point],amelioration:List[Boolean]):List[Point] = {
-        if (amelioration.contains(true)) {
-        def boucleFor1(cycle: List[Point], cycleCopy: List[Point], cycleCopy2: List[Point],amelioration1:List[Boolean] ): List[Point] = cycleCopy match {
-          case Nil => boucleWhile(cycle, cycleCopy, cycleCopy2,amelioration1)
-          case xi :: tail1 =>
-            @tailrec
-            def boucleFor2(xi:Point, cycle: List[Point], cycleCopy: List[Point], cycleCopy2: List[Point], amelioration2:List[Boolean]): List[Point] = cycleCopy2 match {
-              case Nil => boucleFor1(cycle, cycleCopy, cycle,amelioration2)
-              case xj :: tail2 =>
-                if (xj != xi && xj != getNextElem(cycle, xi).getOrElse(cycle.head) && xj != getPreviousElem(cycle, xi).getOrElse(cycle.last)) {
-
-                    if ((distance(xi,getNextElem(cycle,xi).getOrElse(cycle.head)) + distance(xj,getNextElem(cycle,xj).getOrElse(cycle.head)))
-                    > (distance(xi,xj) + distance(getNextElem(cycle,xi).getOrElse(cycle.head),getNextElem(cycle,xj).getOrElse(cycle.head)))) {
-
-                      def permEdges(cycle:List[Point],xi:Point,xi_suiv:Point,xj:Point,xj_suiv:Point):List[Point] = cycle match {
-                        case Nil => Nil
-
-                        case `xi` :: _ :: tail => xi :: xj :: permEdges(tail,xi, xi_suiv, xj, xj_suiv)
-                        case `xj` :: _ :: tail => xi_suiv :: xj_suiv :: permEdges(tail,xi, xi_suiv, xj, xj_suiv)
-                        case p::tail => p::permEdges(tail,xi, xi_suiv, xj, xj_suiv)
-                      }
-                      val newCycle:List[Point] = permEdges(cycle,xi,xj,getNextElem(cycle,xi).getOrElse(cycle.head),getNextElem(cycle,xj).getOrElse(cycle.head))
-
-                      val b:Int = newCycle.indexOf(getNextElem(cycle,xi).getOrElse(cycle.head))
-                      val x:Int = newCycle.indexOf(xj)
-
-                      val newCycleOrdered:List[Point] = if (x < b) newCycle.take(x) ::: newCycle.slice(x + 1,b+1).reverse ::: newCycle.takeRight(newCycle.size - b)
-                      else newCycle.take(b) ::: newCycle.slice(b + 1,x+1).reverse ::: newCycle.takeRight(newCycle.size - x)
-                      boucleFor2(xi,newCycleOrdered,cycleCopy,tail2,true::amelioration2)
-                    }
-                    else boucleFor2(xi,cycle,cycleCopy,tail2,false::amelioration2)
-                }
-                else boucleFor2(xi,cycle, cycleCopy, tail2,false::amelioration2)
-
-            }
-          boucleFor2(xi,cycle,tail1,cycleCopy2,amelioration1)
-        }
-        boucleFor1(cycle, cycleCopy, cycleCopy2,List[Boolean]())
-      } else {
-        cycle
-      }
-      }
-
-      boucleWhile(cycle,cycle,cycle,List[Boolean](true))
+    def reverseEdges(edges: List[Edge]): List[Edge] = {
+      edges.map(e => Edge(e.to, e.from)).reverse
     }
-    val twoOpt = TwoOpt(NNPath)
-    Path(twoOpt :+ twoOpt.head)
+
+
+    // edgeToSwap1 avant edgeToSwap2
+
+    def twoOptSwap(cycle: List[Edge], edgeToSwap1: Edge, edgeToSwap2: Edge): List[Edge] = {
+      val index_edges: List[Int] = cycle.zipWithIndex.collect { case (`edgeToSwap1`, i) => i case (`edgeToSwap2`, i) => i }
+
+      cycle.takeWhile(edge => edge != edgeToSwap1) ::: List(Edge(edgeToSwap1.from, edgeToSwap2.from)) :::
+        reverseEdges(cycle.slice(index_edges.head + 1, index_edges.last)) ::: List(Edge(edgeToSwap1.to, edgeToSwap2.to)) :::
+        cycle.takeRight(cycle.length - index_edges.last - 1)
+
+    }
+
+    def twoOpt(cycle: List[Edge]): List[Edge] = {
+
+
+      def twoOptHelper(cycle: List[Edge], amelioration: Boolean, res:List[List[Edge]]): List[Edge] = {
+        if (amelioration) {
+
+          for (edge1 <- cycle.dropRight(2)) {
+            for (edge2 <- cycle.drop(cycle.indexOf(edge1) + 2)) {
+              if (edge1.distance2 + edge2.distance2 > Edge(edge1.from, edge2.from).distance2 + Edge(edge1.to, edge2.to).distance2) {
+                val newCycle = twoOptSwap(cycle, edge1, edge2)
+                //println(Path(edgesToPoints(newCycle)).length)
+                twoOptHelper(newCycle, true, newCycle :: res)
+              }
+            }
+          }
+          twoOptHelper(cycle, false, res)
+        }
+        else
+          res.head
+
+      }
+  twoOptHelper(cycle, true, List(cycle))
+
 }
-}
+
+def edgesToPoints (edges: List[Edge] ): List[Point] = edges match {
+  case Nil => Nil
+  case edge :: Nil => edge.from :: edge.to :: Nil
+  case edge :: tail => edge.from :: edgesToPoints (tail)
+  }
+  // NearestNeighbor(pointsList.tail,pointsList.head,Nil)
+
+  Path (edgesToPoints (twoOpt(List (Edge (Point (0, 0), Point (0, 1) ), Edge (Point (0, 1), Point (1, 0) ), Edge (Point (1, 0), Point (1, 1) ), Edge (Point (1, 1), Point (0, 0) ) ) ) ) )
+  }
+  }

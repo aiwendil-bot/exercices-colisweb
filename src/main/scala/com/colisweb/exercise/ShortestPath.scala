@@ -4,34 +4,39 @@ import com.colisweb.exercise.domain.{Edge, _}
 
 import annotation.tailrec
 import scala.collection.immutable._
+
 object ShortestPath {
 
-  def shortestPath(pathProblem: PathProblem):Option[Path] ={
+  def shortestPath(pathProblem: PathProblem): Option[Path] = {
 
-  val adjList: Map[Point, List[(Point, Double)]] = pathProblem.graph.groupBy(_.from).map {
-    case (k, v) => (k, v.map { edge => (edge.to, edge.distance) })
-  }
+    val adjList: Map[Point, List[Point]] = pathProblem.graph.groupBy(_.from).map {
+      case (k, v) => (k, v.map { edge => edge.to })
+    }
 
-  @tailrec
-  def dijkstra(adjList: Map[Point, List[(Point, Double)]], bestKnownPaths: List[(List[Point], Double)], visited: List[Point]): Option[Path] = bestKnownPaths match {
-    case Nil => None
-    case (path: List[Point], length: Double) :: bestKnownPathsRestant => path match {
+    @tailrec
+    def dijkstra(adjList: Map[Point, List[Point]], extremePoints: List[Point], bestKnownPaths: Map[Point, Path], visited: List[Point]): Option[Path] = extremePoints match {
+      case Nil => None
       case point :: _ =>
-        if (point == pathProblem.end) Some(Path(path.reverse))
+        if (point == pathProblem.end) Some(Path(bestKnownPaths(point).points.reverse))
         else {
-          val newPaths: List[(List[Point], Double)] = {
-            adjList.getOrElse(point, Nil).flatMap {
-            case (point: Point, l: Double) => if (!visited.contains(point)) List((point :: path, length + l)) else Nil
-          }
+          def updateBestKnownPaths(neighbors: List[Point], bestKnownPaths: Map[Point, Path]): Map[Point, Path] = neighbors match {
+            case Nil => bestKnownPaths
+            case neighbor :: tail =>
+              if (!visited.contains(neighbor)) {
+                updateBestKnownPaths(tail, bestKnownPaths + (neighbor -> Path(neighbor :: bestKnownPaths(point).points)))
+              } else
+                updateBestKnownPaths(tail, bestKnownPaths)
           }
 
-          val bestKnownPathsSorted: List[(List[Point], Double)] = (newPaths ::: bestKnownPathsRestant).sortWith({ case ((_, d1: Double), (_, d2: Double)) => d1 < d2 })
-          dijkstra(adjList, bestKnownPathsSorted, point::visited)
+          val updatedBestKnownPaths = updateBestKnownPaths(adjList.getOrElse(point, Nil), bestKnownPaths)
+          val sortedExtremePoints = ((extremePoints ::: adjList.getOrElse(point, Nil)) diff (List(point) ::: visited)).sortBy(point => updatedBestKnownPaths(point).length)
+
+          dijkstra(adjList, sortedExtremePoints, updatedBestKnownPaths, point :: visited)
 
         }
     }
-  }
-  dijkstra(adjList, List((List(pathProblem.start), 0)), List[Point]())
 
-}
+    dijkstra(adjList, List(pathProblem.start), Map[Point, Path](pathProblem.start -> Path(List(pathProblem.start))), List[Point]())
+  }
+
 }

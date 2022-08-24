@@ -1,0 +1,68 @@
+
+// nearest neighbor heuristic
+
+Entrée : L : liste de Points
+Sortie : liste d'arêtes formant un cycle hamiltonien
+
+Sélectionner le premier point premierPoint de L
+pointActuel <- premierPoint
+pointsRestants <- L \ {premierPoint}
+résultat <- Liste vide
+
+Tant que L n'est pas vide :
+
+    pointVoisin <- min { distance(PointActuel, p) | p appartienne à pointsRestants }
+    Ajouter à résultat l'arête (pointVoisin, pointActuel)
+    pointsRestants <- pointsRestants \ {pointActuel}
+    pointActuel <- pointVoisin
+
+Fin Tant que
+
+Ajouter à résultat l'arête (premierPoint,pointActuel)
+Retourner résultat
+
+------------------------------------------------------------------------------------------------------
+
+// 2-opt heuristic
+// cf "The Approximation Ratio of the 2-Opt Heuristic for the Euclidean Traveling Salesman Problem" pages 3-4
+
+Entrée : un cycle hamiltonien C : liste d'arêtes
+Sortie : un cycle hamiltonien 2-opt optimal : liste d'arêtes
+
+amelioration <- vrai
+
+Tant que amélioration = vrai
+    amelioration <- faux
+
+    Pour toute arête (a,b) de C             // a,b,x,y sont des Points
+        Pour toute arête (x,y) de C
+            Si d(a,b) + d(x,y) > d(a,x) + d(b,y)
+
+                amelioration <- vrai
+                C <- C en remplaçant les arêtes (a,b) et (x,y) par (a,x) et (b,y) et en renversant le sens des arêtes
+                        entre les points b et x
+
+            Fin Si
+        Fin Pour
+    Fin Pour
+
+Fin Tant que
+
+Retourner C
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
